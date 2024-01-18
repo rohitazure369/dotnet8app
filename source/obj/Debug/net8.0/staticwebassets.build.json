@@ -1,0 +1,11 @@
+{
+  "Version": 1,
+  "Hash": "wdoJjPi6iWMJbMHb5u7kAbX4BTMle2DM3Klpz+yc+eM=",
+  "Source": "dotnet8app",
+  "BasePath": "_content/dotnet8app",
+  "Mode": "Default",
+  "ManifestType": "Build",
+  "ReferencedProjectsConfiguration": [],
+  "DiscoveryPatterns": [],
+  "Assets": []
+}

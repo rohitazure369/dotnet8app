@@ -1,0 +1,81 @@
+
+trigger:
+- main
+
+resources:
+- repo: self
+
+variables:
+  # Container registry service connection established during pipeline creation
+  dockerRegistryServiceConnection: 'sc-docker-registry'
+  imageRepository: 'pythonapp'
+  containerRegistry: 'rkdevopsdockerregistry.azurecr.io'
+  dockerfilePath: '$(Build.SourcesDirectory)/Dockerfile'
+  tag: '$(Build.BuildId)'
+  acr-url: 'rkdevopsdockerregistry.azurecr.io'
+  acr-username: 'rkdevopsdockerregistry'
+  acr-password: '3B/sPjL6TYso9DTKr7sL1qdqSZdFWT0kTH4ntB3ypV+ACRD9PKrk'
+  vmImageName: 'windows-latest'
+  azureWebAppName: 'rkdockerwebapp'
+
+stages:
+- stage: Build_and_Test
+  displayName: Build and push stage
+  jobs:
+  - job: Build
+    displayName: Build
+    pool:
+      vmImage: $(vmImageName)
+    steps:
+    - task: Docker@2
+      displayName: Build and push an image to container registry
+      inputs:
+        command: buildAndPush
+        repository: $(imageRepository)
+        dockerfile: $(dockerfilePath)
+        containerRegistry: $(dockerRegistryServiceConnection)
+        tags: |
+          $(tag)
+ 
+  - job: Test
+    displayName: 'Test Job'
+    dependsOn: Build
+    pool:
+      vmImage: $(vmImageName)
+    steps:
+    - script: |
+        echo "Running tests..."
+        # Add your test commands here
+      displayName: 'Run Tests'
+
+- stage: Deploy
+  displayName: Build and push stage
+  jobs:        
+  - job: Deploy_to_Dev
+    displayName: 'Deploy to Dev'
+    pool:
+      vmImage: $(vmImageName)
+    steps:
+    - task: AzureWebAppContainer@1
+      inputs:
+        azureSubscription: 'sc-rg-devops-docker'
+        appName: $(azureWebAppName)
+        deployToSlotOrASE: true
+        resourceGroupName: 'RG-DEVOPS-DOCKER'
+        slotName: 'dev'
+        containers: '$(containerRegistry)/$(imageRepository):$(tag)'
+        appSettings: '-DOCKER_REGISTRY_SERVER_URL $(acr-url) -DOCKER_REGISTRY_SERVER_USERNAME $(acr-username) -DOCKER_REGISTRY_SERVER_PASSWORD $(acr-password)'
+  
+  - job: Deploy_to_Prod
+    displayName: 'Deploy to Prod'
+    dependsOn: Deploy_to_Dev
+    pool:
+      vmImage: $(vmImageName)
+    steps:
+    - task: AzureWebAppContainer@1
+      inputs:
+        azureSubscription: 'sc-rg-devops-docker'
+        appName: $(azureWebAppName)
+        resourceGroupName: 'RG-DEVOPS-DOCKER'
+        containers: '$(containerRegistry)/$(imageRepository):$(tag)'
+        appSettings: '-DOCKER_REGISTRY_SERVER_URL $(acr-url) -DOCKER_REGISTRY_SERVER_USERNAME $(acr-username) -DOCKER_REGISTRY_SERVER_PASSWORD $(acr-password)'
